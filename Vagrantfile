@@ -5,7 +5,7 @@ Vagrant.configure(2) do |config|
   config.vm.box = "ubuntu/bionic64"
   config.vm.hostname = "matchingbox"
   config.vm.define "matchingbox"
-  config.vm.network "forwarded_port", guest: 8081, host: 8081
+  config.vm.network "forwarded_port", guest: 5432, host: 5432
 
   config.vm.provision :shell,
     path: "scripts/vagrant/provision.sh",
