@@ -175,11 +175,7 @@ def get_data(cur):
         #              WHERE id = "  + str(id[0]))
         # average_age_and_year = cur.fetchall()
         # print average_age_and_year
-
-
-
-
-
+    return companies_data
 
 
 def test_data_fetch():
