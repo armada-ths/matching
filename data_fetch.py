@@ -52,19 +52,11 @@ def get_arrays(cur):
     return M
 
 
-def enable_connection():
-    try:
-        conn = psycopg2.connect("dbname='ais_dev' user='ais_dev' host='localhost'")
-    except:
-        print("I am unable to connect to the database")
-
-    return conn.cursor()
 
 
 
-def get_data():
 
-    cur = enable_connection()
+def get_data(cur):
 
     # Get all the exhibitor ids of this years fair
     cur.execute("SELECT * FROM exhibitors_exhibitor WHERE fair_id = " + fair_id)
@@ -173,7 +165,7 @@ def get_data():
         #if np.all(all_answers==0):
         #    print "Company with exhibitor id: " + str(id[0]) + " has not responded yet"
 
-        print (companies_data[i])
+        #print (companies_data[i])
 
 
         # MAYBE REMOVE THIS? Too many without answers on these two
@@ -191,8 +183,13 @@ def get_data():
 
 
 def test_data_fetch():
+    try:
+        conn = psycopg2.connect("dbname='ais_dev' user='ais_dev' host='localhost'")
+    except:
+        print("I am unable to connect to the database")
 
-    get_data()
+    cur = conn.cursor()
+    get_data(cur)
 
 
-test_data_fetch()
+#test_data_fetch()
