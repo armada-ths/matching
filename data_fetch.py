@@ -11,6 +11,22 @@ import numpy as np
 fair_id = "3"
 
 
+def get_names(cur):
+    # Get all the exhibitor ids of this years fair
+    cur.execute("SELECT * FROM exhibitors_exhibitor WHERE fair_id = " + fair_id)
+    exhibitor_ids = cur.fetchall()
+
+    # Get the names of the exhibitors
+    exhibitor_names = []
+    for i,id in enumerate(exhibitor_ids):
+        cur.execute(" SELECT companies_company.name \
+                      FROM companies_company,  exhibitors_exhibitor \
+                      WHERE exhibitors_exhibitor.company_id = companies_company.id and exhibitors_exhibitor.id =  "  + str(id[0]))
+        exhibitor_name = cur.fetchone()[0]
+        exhibitor_names.append(exhibitor_name)
+    return exhibitor_names
+
+
 
 def get_arrays(cur):
     # Create the matrix M in which all questions by all companies will be stored.
