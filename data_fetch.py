@@ -7,20 +7,20 @@ fair_id = "3"
 number_of_questions = 5
 
 # Method for extracting the names of all the exhibitors
-def get_names(cur):
+def get_names_and_ids(cur):
     # Get all the exhibitor ids of this years fair
-    cur.execute("SELECT * FROM public.exhibitors_exhibitor WHERE fair_id = " + fair_id)
-    exhibitor_ids = cur.fetchall()
+    cur.execute("SELECT id FROM public.exhibitors_exhibitor WHERE fair_id = " + fair_id + "ORDER BY id")
+    exhibitors_ids = cur.fetchall()
 
     # Get the names of the exhibitors
-    exhibitor_names = []
-    for i,id in enumerate(exhibitor_ids):
+    exhibitors = []
+    for id in exhibitors_ids:
         cur.execute(" SELECT companies_company.name \
                       FROM companies_company,  exhibitors_exhibitor \
                       WHERE exhibitors_exhibitor.company_id = companies_company.id and exhibitors_exhibitor.id =  "  + str(id[0]))
         exhibitor_name = cur.fetchone()[0]
-        exhibitor_names.append(exhibitor_name)
-    return exhibitor_names
+        exhibitors.append((id[0],exhibitor_name))
+    return exhibitors
 
 
 # Method for extracting the number of answers for each question
@@ -103,8 +103,8 @@ def get_company_data(cur):
 
         # Create an array of zeros and for each answer the company has answered, fill in 1 on that index.
         employment_answer_indexes = np.zeros(number_of_answers[1], dtype=int)
-        for checkbox in employment_answers:
-            employment_answer_indexes[checkbox[1] - 1] = 1
+        for answer in employment_answers:
+            employment_answer_indexes[answer[1] - 1] = 1
         all_answers = np.append(all_answers, employment_answer_indexes)
 
         # Get the answers on the question about industries
@@ -162,4 +162,4 @@ def test_data_fetch():
     get_company_data(cur)
 
 
-test_data_fetch()
+#test_data_fetch()
