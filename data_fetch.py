@@ -1,19 +1,15 @@
-# charset=utf-8
-#!/usr/bin/python2.7
-#
-# Small script to show PostgreSQL and Pyscopg together
-#
-
 import psycopg2
 import numpy as np
 
-
+# This years fair id
 fair_id = "3"
+# Number of questions
+number_of_questions = 5
 
-
+# Method for extracting the names of all the exhibitors
 def get_names(cur):
     # Get all the exhibitor ids of this years fair
-    cur.execute("SELECT * FROM exhibitors_exhibitor WHERE fair_id = " + fair_id)
+    cur.execute("SELECT * FROM public.exhibitors_exhibitor WHERE fair_id = " + fair_id)
     exhibitor_ids = cur.fetchall()
 
     # Get the names of the exhibitors
@@ -27,69 +23,58 @@ def get_names(cur):
     return exhibitor_names
 
 
+# Method for extracting the number of answers for each question
+def get_number_of_answers(cur):
+    # Create a list consisting of all the different number of answers
+    number_of_answers_per_question = np.zeros(number_of_questions,dtype=int)
 
-def get_arrays(cur):
-    # Create the matrix M in which all questions by all companies will be stored.
-    # M will consist of (number of companies * number of answers per question)
-    # M is really a list of lists since all questions have different number of answers.
-    M = np.zeros(5,dtype=object)
-
-
-    #Get the number of answers on the question about company benefits
+    # Get the number of answers on the question about company benefits
     cur.execute("SELECT count(*) FROM exhibitors_cataloguebenefit")
     number_of_benefits = cur.fetchall()[0][0]
-    benefit_array = np.zeros(number_of_benefits, dtype=int)
-    M[0] = benefit_array
+    number_of_answers_per_question[0] = number_of_benefits
 
-    #Get the number of answers on the question about employments
+    # Get the number of answers on the question about employments
     cur.execute("SELECT count(*) FROM exhibitors_catalogueemployment")
     number_of_employments = cur.fetchall()[0][0]
-    employment_array = np.zeros(number_of_employments, dtype=int)
-    M[1] = employment_array
+    number_of_answers_per_question[1] = number_of_employments
 
-    #Get the number of answers on the question about industries
+    # Get the number of answers on the question about industries
     cur.execute("SELECT count(*) FROM exhibitors_catalogueindustry")
     number_of_industries = cur.fetchall()[0][0]
-    industries_array = np.zeros(number_of_industries, dtype=int)
-    M[2] = industries_array
+    number_of_answers_per_question[2] = number_of_industries
 
-    #Get the number of answers on the question about company values
+    # Get the number of answers on the question about company values
     cur.execute("SELECT count(*) FROM exhibitors_cataloguevalue")
     number_of_values = cur.fetchall()[0][0]
-    values_array = np.zeros(number_of_values, dtype=int)
-    M[3] = values_array
+    number_of_answers_per_question[3] = number_of_values
 
-    #Get the number of answers on the question about company location
+    # Get the number of answers on the question about company location
     cur.execute("SELECT count(*) FROM exhibitors_cataloguelocation")
     number_of_locations = cur.fetchall()[0][0]
-    locations_array = np.zeros(number_of_locations, dtype=int)
-    M[4] = locations_array
+    number_of_answers_per_question[4] = number_of_locations
 
-    return M
-
+    return number_of_answers_per_question
 
 
-
-
-
-def get_data(cur):
-
+# Method for extracting all the company answers
+def get_company_data(cur):
     # Get all the exhibitor ids of this years fair
     cur.execute("SELECT * FROM exhibitors_exhibitor WHERE fair_id = " + fair_id)
     exhibitor_ids = cur.fetchall()
-    M = get_arrays(cur)
 
     # Get the number of exhibitors
     number_of_companies = len(exhibitor_ids)
 
-    # Get the total number of possible answers for one company
-    number_of_answers = 0
-    for answer_list in M:
-        number_of_answers += len(answer_list)
+    # Get the number of answers for each question
+    number_of_answers = get_number_of_answers(cur)
 
+    # Get the total number of possible answers for one company
+    total_number_of_answers = 0
+    for answers in number_of_answers:
+        total_number_of_answers += answers
 
     # Initialize the final matrix (number of companies * number of possible answers)
-    companies_data = np.zeros((number_of_companies, number_of_answers), dtype=int)
+    company_answers = np.zeros((number_of_companies, total_number_of_answers), dtype=int)
 
     # Iterate through all companies an mark their answers in their row in the final matrix.
     for i,id in enumerate(exhibitor_ids):
@@ -103,12 +88,11 @@ def get_data(cur):
         benefit_answers = cur.fetchall()
 
         # Create an array of zeros and for each answer the company has answered, fill in 1 on that index.
-        benefit_answer_indexes = np.zeros(len(M[0]), dtype=int)
+        benefit_answer_indexes = np.zeros(number_of_answers[0], dtype=int)
         for answer in benefit_answers:
             # Note that the indexes in the database are not zero indexed.
             benefit_answer_indexes[answer[1] - 1] = 1
-        all_answers = np.append(all_answers,benefit_answer_indexes)
-
+        all_answers = np.append(all_answers, benefit_answer_indexes)
 
         # Get the answers on the question about employment
         cur.execute("SELECT DISTINCT exhibitor_id, catalogueemployment_id  \
@@ -118,11 +102,10 @@ def get_data(cur):
         employment_answers = cur.fetchall()
 
         # Create an array of zeros and for each answer the company has answered, fill in 1 on that index.
-        employment_answer_indexes = np.zeros(len(M[1]), dtype=int)
+        employment_answer_indexes = np.zeros(number_of_answers[1], dtype=int)
         for checkbox in employment_answers:
             employment_answer_indexes[checkbox[1] - 1] = 1
-        all_answers = np.append(all_answers,employment_answer_indexes)
-
+        all_answers = np.append(all_answers, employment_answer_indexes)
 
         # Get the answers on the question about industries
         cur.execute("SELECT DISTINCT exhibitor_id, catalogueindustry_id  \
@@ -132,13 +115,10 @@ def get_data(cur):
         industry_answers = cur.fetchall()
 
         # Create an array of zeros and for each answer the company has answered, fill in 1 on that index.
-        industry_answer_indexes = np.zeros(len(M[2]), dtype=int)
+        industry_answer_indexes = np.zeros(number_of_answers[2], dtype=int)
         for answer in industry_answers:
             industry_answer_indexes[answer[1] - 1] = 1
-        all_answers = np.append(all_answers,industry_answer_indexes)
-
-
-
+        all_answers = np.append(all_answers, industry_answer_indexes)
 
         # Get the answers on the question about company values
         cur.execute("SELECT DISTINCT exhibitor_id, cataloguevalue_id  \
@@ -148,12 +128,10 @@ def get_data(cur):
         value_answers = cur.fetchall()
 
         # Create an array of zeros and for each answer the company has answered, fill in 1 on that index.
-        value_answer_indexes = np.zeros(len(M[3]), dtype=int)
+        value_answer_indexes = np.zeros(number_of_answers[3], dtype=int)
         for answer in value_answers:
             value_answer_indexes[answer[1] - 1] = 1
-        all_answers = np.append(all_answers,value_answer_indexes)
-
-
+        all_answers = np.append(all_answers, value_answer_indexes)
 
         # Get the answers on the question about company locations
         cur.execute("SELECT DISTINCT exhibitor_id, cataloguelocation_id  \
@@ -163,45 +141,25 @@ def get_data(cur):
         location_answers = cur.fetchall()
 
         # Create an array of zeros and for each answer the company has answered, fill in 1 on that index.
-        location_answer_indexes = np.zeros(len(M[4]), dtype=int)
+        location_answer_indexes = np.zeros(number_of_answers[4], dtype=int)
         for answer in location_answers:
             location_answer_indexes[answer[1] - 1] = 1
-        all_answers = np.append(all_answers,location_answer_indexes)
+        all_answers = np.append(all_answers, location_answer_indexes)
 
         # All answers contains all the answers for this company (represented as an array of 0 and 1).
         # Add this answer array to the final matrix.
-        companies_data[i] = all_answers
-
-
-        # To check what companies has not responded yet, run this below and replace X with ex id
-        # SELECT companies_company.name, exhibitors_exhibitor.id
-        # FROM companies_company,  exhibitors_exhibitor
-        # WHERE exhibitors_exhibitor.company_id = companies_company.id and exhibitors_exhibitor.id = X
-        # ORDER BY exhibitors_exhibitor.id desc
-        #if np.all(all_answers==0):
-        #    print "Company with exhibitor id: " + str(id[0]) + " has not responded yet"
-
-        #print (companies_data[i])
-
-
-        # MAYBE REMOVE THIS? Too many without answers on these two
-        # Get the average age and year founded
-        # cur.execute("SELECT catalogue_average_age, catalogue_founded
-        #              FROM exhibitors_exhibitor
-        #              WHERE id = "  + str(id[0]))
-        # average_age_and_year = cur.fetchall()
-        # print average_age_and_year
-    return companies_data
+        company_answers[i] = all_answers
+    return company_answers
 
 
 def test_data_fetch():
     try:
         conn = psycopg2.connect("dbname='ais_dev' user='ais_dev' host='localhost'")
     except:
-        print("I am unable to connect to the database")
+        print("Unable to connect to the database")
 
     cur = conn.cursor()
-    get_data(cur)
+    get_company_data(cur)
 
 
-#test_data_fetch()
+test_data_fetch()
