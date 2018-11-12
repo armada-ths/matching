@@ -2,6 +2,7 @@
 import json
 import numpy as np
 import psycopg2
+from math import*
 
 # File where data is fetched from the database
 import data_fetch
@@ -13,11 +14,25 @@ def enable_connection():
         print("I am unable to connect to the database")
     return conn.cursor()
 
+def euclidean(student_answers, company):
+    return np.sqrt(sum(pow(a-b,2) for a, b in zip(student_answers, company)))
+
+def manhattan_distance(student_answers,company):
+    return sum(abs(a-b) for a,b in zip(student_answers,company))
+    
+def square_rooted(x, rounded):
+    return round(sqrt(sum([a*a for a in x])),rounded)
+ 
+def cosine_similarity(student_answers,company):
+    rounded=6
+    numerator = sum(a*b for a,b in zip(student_answers,company))
+    denominator = square_rooted(student_answers,rounded)*square_rooted(company, rounded)
+    return round(numerator/float(denominator),rounded)
 
 def similarity_func(student_answers, company_answers, company_data, number_similar_companies):
     distances = {}
     for i,company in enumerate(company_answers):
-        distances[i] = np.sqrt(sum(pow(a-b,2) for a, b in zip(student_answers, company)))
+        distances[i] = cosine_similarity(student_answers, company)
     distances_sorted = []
     for key, value in sorted(distances.iteritems(), key=lambda kv: kv[1]):
         distances_sorted.append((key, value))
@@ -31,7 +46,7 @@ def similarity_func(student_answers, company_answers, company_data, number_simil
         }
     with open('data.json', 'w') as outfile:
         json.dump(most_similar_companies, outfile)
-    #print most_similar_companies
+    print most_similar_companies
     return most_similar_companies
 
 def matching(file_path):
@@ -42,7 +57,7 @@ def matching(file_path):
     student_data = format_student_data(cur, student_data_from_file)
     company_answers = data_fetch.get_company_data(cur)
     company_data = data_fetch.get_names_and_ids(cur)
-    most_similar_companies = similarity_func(student_data, company_answers, company_data, 5)
+    most_similar_companies = similarity_func(student_data, company_answers, company_data, 15)
     return most_similar_companies
 
 
