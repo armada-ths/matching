@@ -24,19 +24,37 @@ def square_rooted(x, rounded):
     return round(sqrt(sum([a*a for a in x])),rounded)
  
 def cosine_similarity(student_answers,company):
-    rounded=6
+    rounded= 15
     numerator = sum(a*b for a,b in zip(student_answers,company))
     denominator = square_rooted(student_answers,rounded)*square_rooted(company, rounded)
     return round(numerator/float(denominator),rounded)
 
 def similarity_func(student_answers, company_answers, company_data, number_similar_companies):
+    
     distances = {}
+    distance_cosine=np.zeros(len(company_answers), dtype=float)
+    distance_euclidean=np.zeros(len(company_answers), dtype=float)
+
+    # Eps is needed in case the max value is == 0 
+    #   which implies invalid division and that 
+    #   may happen in case of a exact match between
+    #   company and the student
+    eps = 0.0000000001
     for i,company in enumerate(company_answers):
-        distances[i] = cosine_similarity(student_answers, company)
+        distance_cosine[i] = cosine_similarity(student_answers + eps, company + eps)
+        distance_euclidean[i] = euclidean(student_answers + eps, company + eps)
+    
+    # Normalize the vectors in order to be able
+    #   to sum them and get the final distance measure
+    normalized_distance_cosine = distance_cosine/ max(distance_cosine)
+    normalized_distance_euclidean = distance_euclidean/ max(distance_euclidean)
+    for i,company in enumerate(company_answers):
+        distances[i] = normalized_distance_cosine[i] + normalized_distance_euclidean[i]
+
     distances_sorted = []
     for key, value in sorted(distances.iteritems(), key=lambda kv: kv[1]):
         distances_sorted.append((key, value))
-    k = 0
+
     most_similar_companies = {}
     for i in range(number_similar_companies):
         company_id = distances_sorted[i]
@@ -44,9 +62,11 @@ def similarity_func(student_answers, company_answers, company_data, number_simil
             "exhibitor_id": company_data[company_id[0]][0],
             "distance": company_id[1]
         }
+    
     with open('data.json', 'w') as outfile:
         json.dump(most_similar_companies, outfile)
-    print most_similar_companies
+    
+    #print most_similar_companies
     return most_similar_companies
 
 def matching(file_path):
@@ -57,7 +77,7 @@ def matching(file_path):
     student_data = format_student_data(cur, student_data_from_file)
     company_answers = data_fetch.get_company_data(cur)
     company_data = data_fetch.get_names_and_ids(cur)
-    most_similar_companies = similarity_func(student_data, company_answers, company_data, 15)
+    most_similar_companies = similarity_func(student_data, company_answers, company_data, 5)
     return most_similar_companies
 
 
