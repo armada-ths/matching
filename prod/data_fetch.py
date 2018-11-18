@@ -166,6 +166,6 @@ def test_data_fetch(id):
     comp_answ = get_company_data(cur)
     for i in range(len(comp_data)):
         if comp_data[i][0] == id:
-            print comp_answ[i]
+            print(comp_answ[i])
 
 #test_data_fetch()

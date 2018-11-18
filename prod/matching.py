@@ -35,7 +35,7 @@ def similarity_func(student_answers, company_answers, company_data, number_simil
             distances[i] = np.sqrt(sum(pow(a-b,2) for a, b in zip(new_student_answers, company)))
 
     distances_sorted = []
-    for key, value in sorted(distances.iteritems(), key=lambda kv: kv[1]):
+    for key, value in sorted(distances.items(), key=lambda kv: kv[1]):
         distances_sorted.append((key, value))
     most_similar_companies = {}
     for i in range(number_similar_companies):
