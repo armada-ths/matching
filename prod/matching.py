@@ -2,7 +2,6 @@
 import json
 import numpy as np
 import psycopg2
-import operator
 
 # File where data is fetched from the database
 import data_fetch
