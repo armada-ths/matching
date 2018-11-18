@@ -2,6 +2,7 @@
 import json
 import numpy as np
 import psycopg2
+import operator
 
 # File where data is fetched from the database
 import data_fetch
@@ -15,46 +16,44 @@ def enable_connection():
 
 
 def similarity_func(student_answers, company_answers, company_data, number_similar_companies):
-    print student_answers
-    student_yes_answers = []
+    student_yes_indexes = []
 
     # Get all the answers the student marked
     for i in range(len(student_answers)):
         if student_answers[i] == 1:
-            student_yes_answers.append(i)
+            student_yes_indexes.append(i)
+    new_student_answers = np.ones(len(student_yes_indexes))
 
-    # Only keep the answers that the student chose
-    new_company_answers = company_answers[:, student_yes_answers]
+    # Only keep the answer options that the student answered
+    new_company_answers = company_answers[:, student_yes_indexes]
 
     distances = {}
     for i,company in enumerate(new_company_answers):
-        # If a company has not answered, set the distance to max
-        if np.all(company==0):
+        # If a company has not answered, set the distance to a high value
+        if np.all(company == 0):
             distances[i] = 100000
         else:
-            distances[i] = np.sqrt(sum(pow(a-b,2) for a, b in zip(student_yes_answers, company)))
+            distances[i] = np.sqrt(sum(pow(a-b,2) for a, b in zip(new_student_answers, company)))
+
     distances_sorted = []
     for key, value in sorted(distances.iteritems(), key=lambda kv: kv[1]):
         distances_sorted.append((key, value))
-    k = 0
     most_similar_companies = {}
     for i in range(number_similar_companies):
         company = distances_sorted[i]
         company_id = company[0]
         exhibitor_id = company_data[company_id][0]
-        data_fetch.test_data_fetch(exhibitor_id)
+        #data_fetch.test_data_fetch(exhibitor_id)
         most_similar_companies[i] = {
             "exhibitor_id": exhibitor_id,
             "distance": company[1]
         }
     with open('data.json', 'w') as outfile:
         json.dump(most_similar_companies, outfile)
-    print most_similar_companies
     return most_similar_companies
 
 def matching(file_path):
     cur = enable_connection()
-    student_data_from_file = {}
     with open(file_path, 'r') as infile:
         student_data_from_file = json.load(infile)
     student_data = format_student_data(cur, student_data_from_file)
