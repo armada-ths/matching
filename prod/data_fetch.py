@@ -168,5 +168,4 @@ def test_data_fetch(id):
         if comp_data[i][0] == id:
             print comp_answ[i]
 
-
-            #test_data_fetch()
+#test_data_fetch()
