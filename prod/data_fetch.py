@@ -59,14 +59,11 @@ def get_number_of_answers(cur):
 # Method for extracting all the company answers
 def get_company_data(cur):
     # Get all the exhibitor ids of this years fair
-    exhibitors = get_names_and_ids(cur)
-    exhibitor_ids = []
-
-    for i in range(len(exhibitors)):
-        exhibitor_ids.append(exhibitors[i][0])
+    cur.execute("SELECT * FROM exhibitors_exhibitor WHERE fair_id = " + fair_id)
+    exhibitor_ids = cur.fetchall()
 
     # Get the number of exhibitors
-    number_of_companies = 182
+    number_of_companies = len(exhibitor_ids)
 
     # Get the number of answers for each question
     number_of_answers = get_number_of_answers(cur)
@@ -86,7 +83,7 @@ def get_company_data(cur):
         # Get the answers on the question about the company benefits
         cur.execute("SELECT DISTINCT exhibitor_id, cataloguebenefit_id  \
                      FROM exhibitors_exhibitor_catalogue_benefits, exhibitors_exhibitor \
-                     WHERE exhibitors_exhibitor_catalogue_benefits.exhibitor_id = "  + str(id) +  " \
+                     WHERE exhibitors_exhibitor_catalogue_benefits.exhibitor_id = "  + str(id[0]) +  " \
                      ORDER BY exhibitor_id, cataloguebenefit_id")
         benefit_answers = cur.fetchall()
 
@@ -100,7 +97,7 @@ def get_company_data(cur):
         # Get the answers on the question about employment
         cur.execute("SELECT DISTINCT exhibitor_id, catalogueemployment_id  \
                      FROM exhibitors_exhibitor_catalogue_employments, exhibitors_exhibitor \
-                     WHERE exhibitors_exhibitor_catalogue_employments.exhibitor_id = "  + str(id) +  " \
+                     WHERE exhibitors_exhibitor_catalogue_employments.exhibitor_id = "  + str(id[0]) +  " \
                      ORDER BY exhibitor_id, catalogueemployment_id")
         employment_answers = cur.fetchall()
 
@@ -113,7 +110,7 @@ def get_company_data(cur):
         # Get the answers on the question about industries
         cur.execute("SELECT DISTINCT exhibitor_id, catalogueindustry_id  \
                      FROM exhibitors_exhibitor_catalogue_industries, exhibitors_exhibitor \
-                     WHERE exhibitors_exhibitor_catalogue_industries.exhibitor_id = "  + str(id) +  " \
+                     WHERE exhibitors_exhibitor_catalogue_industries.exhibitor_id = "  + str(id[0]) +  " \
                      ORDER BY exhibitor_id, catalogueindustry_id")
         industry_answers = cur.fetchall()
 
@@ -126,7 +123,7 @@ def get_company_data(cur):
         # Get the answers on the question about company values
         cur.execute("SELECT DISTINCT exhibitor_id, cataloguevalue_id  \
                      FROM exhibitors_exhibitor_catalogue_values, exhibitors_exhibitor \
-                     WHERE exhibitors_exhibitor_catalogue_values.exhibitor_id = "  + str(id) +  " \
+                     WHERE exhibitors_exhibitor_catalogue_values.exhibitor_id = "  + str(id[0]) +  " \
                      ORDER BY exhibitor_id, cataloguevalue_id")
         value_answers = cur.fetchall()
 
@@ -139,7 +136,7 @@ def get_company_data(cur):
         # Get the answers on the question about company locations
         cur.execute("SELECT DISTINCT exhibitor_id, cataloguelocation_id  \
                      FROM exhibitors_exhibitor_catalogue_locations, exhibitors_exhibitor \
-                     WHERE exhibitors_exhibitor_catalogue_locations.exhibitor_id = "  + str(id) +  " \
+                     WHERE exhibitors_exhibitor_catalogue_locations.exhibitor_id = "  + str(id[0]) +  " \
                      ORDER BY exhibitor_id, cataloguelocation_id")
         location_answers = cur.fetchall()
 
@@ -155,17 +152,14 @@ def get_company_data(cur):
     return company_answers
 
 
-def test_data_fetch(id):
+def test_data_fetch():
     try:
         conn = psycopg2.connect("dbname='ais_dev' user='ais_dev' host='localhost'")
     except:
         print("Unable to connect to the database")
 
     cur = conn.cursor()
-    comp_data = get_names_and_ids(cur)
-    comp_answ = get_company_data(cur)
-    for i in range(len(comp_data)):
-        if comp_data[i][0] == id:
-            print comp_answ[i]
+    get_company_data(cur)
 
-#test_data_fetch()
+
+test_data_fetch()

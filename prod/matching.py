@@ -2,6 +2,7 @@
 import json
 import numpy as np
 import psycopg2
+import sys
 
 # File where data is fetched from the database
 import data_fetch
@@ -14,7 +15,7 @@ def enable_connection():
     return conn.cursor()
 
 
-def similarity_func(student_answers, company_answers, company_data, number_similar_companies):
+def similarity_func(student_answers, company_answers, company_data, number_similar_companies, doc_id):
     student_yes_indexes = []
 
     # Get all the answers the student marked
@@ -35,7 +36,7 @@ def similarity_func(student_answers, company_answers, company_data, number_simil
             distances[i] = np.sqrt(sum(pow(a-b,2) for a, b in zip(new_student_answers, company)))
 
     distances_sorted = []
-    for key, value in sorted(distances.iteritems(), key=lambda kv: kv[1]):
+    for key, value in sorted(distances.items(), key=lambda kv: kv[1]):
         distances_sorted.append((key, value))
     most_similar_companies = {}
     for i in range(number_similar_companies):
@@ -47,18 +48,18 @@ def similarity_func(student_answers, company_answers, company_data, number_simil
             "exhibitor_id": exhibitor_id,
             "distance": company[1]
         }
-    with open('data.json', 'w') as outfile:
+    with open("/tmp/" + doc_id + "_output.json", "w") as outfile:
         json.dump(most_similar_companies, outfile)
     return most_similar_companies
 
-def matching(file_path):
+def matching(doc_id, file_path):
     cur = enable_connection()
     with open(file_path, 'r') as infile:
         student_data_from_file = json.load(infile)
     student_data = format_student_data(cur, student_data_from_file)
     company_answers = data_fetch.get_company_data(cur)
     company_data = data_fetch.get_names_and_ids(cur)
-    most_similar_companies = similarity_func(student_data, company_answers, company_data, 5)
+    most_similar_companies = similarity_func(student_data, company_answers, company_data, 5, doc_id)
     return most_similar_companies
 
 
@@ -95,5 +96,4 @@ def format_student_data(cur, data):
     student_data = np.append(student_data, location_answer_indexes)
     return student_data
 
-
-matching('test.json')
+matching(sys.argv[1],sys.argv[2])
