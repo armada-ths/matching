@@ -26,10 +26,11 @@ def similarity_func(student_answers, company_answers, company_data, number_simil
 
     # Only keep the answer options that the student answered
     new_company_answers = company_answers[:, student_yes_indexes]
-
+    import sys
     distances = {}
     for i,company in enumerate(new_company_answers):
         # If a company has not answered, set the distance to a high value
+        #sys.stderr.write('company: ' + str(company))
         if np.all(company == 0):
             distances[i] = 100000
         else:
@@ -69,11 +70,16 @@ def format_student_data(cur, data):
     # Get the number of answers for each question
     number_of_answers = data_fetch.get_number_of_answers(cur)
 
-    benefit_answer_indexes = np.zeros(number_of_answers[0], dtype=int)
-    for answer in data.get("benefits"):
-        # Note that the indexes in the database are not zero indexed.
-        benefit_answer_indexes[answer - 1] = 1
-    student_data = np.append(student_data, benefit_answer_indexes)
+    # benefit_answer_indexes = np.zeros(number_of_answers[0], dtype=int)
+    # for answer in data.get("benefits"):
+    #     # Note that the indexes in the database are not zero indexed.
+    #     benefit_answer_indexes[answer - 1] = 1
+    # student_data = np.append(student_data, benefit_answer_indexes)
+
+    competence_answer_indexes = np.zeros(number_of_answers[0], dtype=int)
+    for answer in data.get("competences"):
+        competence_answer_indexes[answer - 1] = 1
+    student_data = np.append(student_data, competence_answer_indexes)
 
     employment_answer_indexes = np.zeros(number_of_answers[1], dtype=int)
     for answer in data.get("employments"):
@@ -94,6 +100,7 @@ def format_student_data(cur, data):
     for answer in data.get("locations"):
         location_answer_indexes[answer - 1] = 1
     student_data = np.append(student_data, location_answer_indexes)
+
     return student_data
 
 matching(sys.argv[1],sys.argv[2])
