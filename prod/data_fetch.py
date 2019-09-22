@@ -82,7 +82,7 @@ def get_number_of_answers(cur):
 # Method for extracting all the company answers
 def get_company_data(cur):
     # Get all the exhibitor ids of this years fair
-    # TODO So I think this used to be a bug... The names_and_ids where sorted, but not this one
+    # TODO So I think this used to be a bug... The names_and_ids were sorted, but not this one
     #cur.execute("SELECT * FROM exhibitors_exhibitor WHERE fair_id = " + fair_id + " ORDER BY id") 
     #exhibitor_ids = cur.fetchall()
     exhibitor_ids = exhibitors_ordered_by_id(cur)
@@ -101,6 +101,8 @@ def get_company_data(cur):
     # Initialize the final matrix (number of companies * number of possible answers)
     company_answers = np.zeros((number_of_companies, total_number_of_answers), dtype=int)
 
+    # Initialize the list that will hold the cities chosen by each company
+    company_cities = []
     # Iterate through all companies an mark their answers in their row in the final matrix.
     for i,id in enumerate(exhibitor_ids):
         import sys
@@ -192,7 +194,20 @@ def get_company_data(cur):
         # All answers contains all the answers for this company (represented as an array of 0 and 1).
         # Add this answer array to the final matrix.
         company_answers[i] = all_answers
-    return company_answers
+
+        # Now get the cities for this exhibitor, just the raw data. We may format it later
+        cur.execute(   "SELECT catalogue_cities \
+                        FROM exhibitors_exhibitor \
+                        WHERE id = " + str(id[0])
+                    )
+        
+        company_cities.append(cur.fetchall()) # Will have the same order as company_answers
+
+    company_data = {"answers": company_answers,
+                    "cities": company_cities,
+                    "info": get_names_and_ids(cur)}
+
+    return company_data
 
 
 def test_data_fetch():
