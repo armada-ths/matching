@@ -53,31 +53,31 @@ def similarity_func(student_data, company_data, number_similar_companies, doc_id
         # The best possible is if the company has answered yes
         # for everything the student checked.
         similarities[i] = sum((1 if a == b else -1 for a, b in zip(new_student_answers, company)))
-        import sys
-        sys.stderr.write("similarity: " + str(similarities[i]))
-        # The similarity is AT MOST 
-
 
     # Compare student and companies based on the cities they entered
     # Split the student choices at comma and remove whitespace
-    student_cities = [x.strip() for x in student_data["cities"].split(',')]
+    student_cities = [x.strip().lower() for x in student_data["cities"].split(',')]
     student_cities = [x for x in student_cities if x] # We do not accept empty strings    
 
-    sys.stderr.write("\n" + " cities: " + str(student_cities) + "\n")
     if len(student_cities) > 0: # The student actually wrote something
         max_points += len(student_cities)
         min_points -= 1
+
         for i, company_cities in enumerate(company_data["cities"]):
-            # TODO Fancy logic here
-            # If the company has not answered, they cannot have a match
+            # If the company has not answered, they get -1, 
+            # since the student clearly has a preference, 
+            # and we can't know if the company lives up to it
             if company_cities is None or not company_cities: # None or empty string
                 similarities[i] -= 1
             else:
                 # Get the number of citites in common
-                number_of_matching_cities = sum([1 if city in company_cities else 0 for city in student_cities])
-                similarities[i] += number_of_matching_cities
+                number_of_matching_cities = sum([1 if city in company_cities.lower() else 0 for city in student_cities])
+                if number_of_matching_cities == 0:
+                    # The company didn't match a single city, so they get -1
+                    similarities[i] -= 1
+                else:
+                    similarities[i] += number_of_matching_cities
     
-    sys.stderr.write("Max points obtainable: " + str(max_points))
     #distances_sorted = []
     #for key, value in sorted(distances.items(), key=lambda kv: kv[1]):
     similarities_sorted = []
@@ -111,12 +111,12 @@ def similarity_func(student_data, company_data, number_similar_companies, doc_id
         json.dump(most_similar_companies, outfile)
     return most_similar_companies
 
-def matching(doc_id, file_path):
+def matching(doc_id, file_path, fair_id):
     cur = enable_connection()
     with open(file_path, 'r') as infile:
         student_data_from_file = json.load(infile)
     student_data = format_student_data(cur, student_data_from_file)
-    company_data = data_fetch.get_company_data(cur)
+    company_data = data_fetch.get_company_data(cur, fair_id)
     #company_answers, company_cities = data_fetch.get_company_data(cur)
     #company_data = data_fetch.get_names_and_ids(cur)
     #most_similar_companies = similarity_func(student_data, company_answers, company_data, 5, doc_id)
@@ -165,4 +165,4 @@ def format_student_data(cur, data):
 
     return student_data
 
-matching(sys.argv[1],sys.argv[2])
+matching(sys.argv[1],sys.argv[2], sys.argv[3])

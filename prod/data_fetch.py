@@ -2,24 +2,24 @@ import psycopg2
 import numpy as np
 
 # This years fair id
-fair_id = "4" # WHY IS THIS HARD-CODED
+#fair_id = "4" # WHY IS THIS HARD-CODED
 # Number of questions
 # As of 2019: Industries? Competences? Values? Employments? Location? Cities?
 # TODO: Cities should probably be treated differently
-number_of_questions = 6
+number_of_questions = 5
 
 # Get all the exhibitors in this years fair
 # in a PREDICTABLE order, i.e. by id.
-def exhibitors_ordered_by_id(cur):
+def exhibitors_ordered_by_id(cur, fair_id):
     cur.execute("SELECT id FROM public.exhibitors_exhibitor WHERE fair_id = " + fair_id + "ORDER BY id")
     return cur.fetchall()
 
 # Method for extracting the names of all the exhibitors
-def get_names_and_ids(cur):
+def get_names_and_ids(cur, fair_id):
     # Get all the exhibitor ids of this years fair
     #cur.execute("SELECT id FROM public.exhibitors_exhibitor WHERE fair_id = " + fair_id + "ORDER BY id")
     #exhibitors_ids = cur.fetchall()
-    exhibitors_ids = exhibitors_ordered_by_id(cur)
+    exhibitors_ids = exhibitors_ordered_by_id(cur, fair_id)
 
     # Get the names of the exhibitors
     exhibitors = []
@@ -80,12 +80,12 @@ def get_number_of_answers(cur):
 
 
 # Method for extracting all the company answers
-def get_company_data(cur):
+def get_company_data(cur, fair_id):
     # Get all the exhibitor ids of this years fair
     # TODO So I think this used to be a bug... The names_and_ids were sorted, but not this one
     #cur.execute("SELECT * FROM exhibitors_exhibitor WHERE fair_id = " + fair_id + " ORDER BY id") 
     #exhibitor_ids = cur.fetchall()
-    exhibitor_ids = exhibitors_ordered_by_id(cur)
+    exhibitor_ids = exhibitors_ordered_by_id(cur, fair_id)
 
     # Get the number of exhibitors
     number_of_companies = len(exhibitor_ids)
@@ -201,11 +201,13 @@ def get_company_data(cur):
                         WHERE id = " + str(id[0])
                     )
         
-        company_cities.append(cur.fetchall()) # Will have the same order as company_answers
+        # fetchall() will return a list with one tuple, since it's only one string
+        # we simply extract the first element of the tuple
+        company_cities.append(cur.fetchall()[0][0]) # Will have the same order as company_answers
 
     company_data = {"answers": company_answers,
                     "cities": company_cities,
-                    "info": get_names_and_ids(cur)}
+                    "info": get_names_and_ids(cur, fair_id)}
 
     return company_data
 
@@ -217,7 +219,7 @@ def test_data_fetch():
         print("Unable to connect to the database")
 
     cur = conn.cursor()
-    get_company_data(cur)
+    get_company_data(cur, "4") # Hard-coded fair_id
 
 
-test_data_fetch()
+#test_data_fetch()
