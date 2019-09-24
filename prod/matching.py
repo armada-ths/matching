@@ -35,17 +35,9 @@ def similarity_func(student_data, company_data, number_similar_companies, doc_id
     max_points = len(student_yes_indexes)
     min_points = -1*max_points
     # Compare student and companies based on their selected answers
-    #distances = {}
     similarities = {}
     for i,company in enumerate(new_company_answers):
-        # OLD COMPARISON
-        # If a company has not answered, set the distance to a high value
-        # if np.all(company == 0):
-        #     distances[i] = 100000
-        # else:
-        #     distances[i] = np.sqrt(sum(pow(a-b,2) for a, b in zip(new_student_answers, company)))
-
-        # NEW COMPARISON: Don't measure distance, measure similarity
+        # Don't measure distance, measure similarity
         # If the student answered yes, the company gets +1 similarity
         # if they also picked yes, and -1 similarity if they didn't
         # We may then normalize it, taking into account the worst
@@ -78,24 +70,17 @@ def similarity_func(student_data, company_data, number_similar_companies, doc_id
                 else:
                     similarities[i] += number_of_matching_cities
     
-    #distances_sorted = []
-    #for key, value in sorted(distances.items(), key=lambda kv: kv[1]):
+    # Sort the similarity scores so we can get the highest ones
     similarities_sorted = []
     for key, value in sorted(similarities.items(), key=lambda kv: kv[1], reverse=True):
-        #distances_sorted.append((key, value))
         similarities_sorted.append((key, value))
     most_similar_companies = {}
     # Now get the companies with the highest similarities
     # Here we normalize the scores to values between 0 and 1.
-    # Currently, the values are between -1 - max_points
-    # and max_points.
+    # Currently, the values are between max_points and min_points.
     # The normalization formula is thus:
-    # (x - (-1 - max_points)) / (2*max_points + 1)
+    # (x - min_points) / (2*max_points + 1)
     for i in range(number_similar_companies):
-        #company = distances_sorted[i]
-        #company_id = company[0]
-        #exhibitor_id = company_data[company_id][0]
-        #data_fetch.test_data_fetch(exhibitor_id)
         company = similarities_sorted[i]
         company_index = company[0]
         exhibitor_id = company_data["info"][company_index][0]
@@ -104,9 +89,9 @@ def similarity_func(student_data, company_data, number_similar_companies, doc_id
 
         most_similar_companies[i] = {
             "exhibitor_id": exhibitor_id,
-            #"distance": company[1]
             "similarity": normalized_similarity
         }
+    # Dump the data to file
     with open("/tmp/" + doc_id + "_output.json", "w") as outfile:
         json.dump(most_similar_companies, outfile)
     return most_similar_companies
@@ -115,11 +100,10 @@ def matching(doc_id, file_path, fair_id):
     cur = enable_connection()
     with open(file_path, 'r') as infile:
         student_data_from_file = json.load(infile)
+
     student_data = format_student_data(cur, student_data_from_file)
     company_data = data_fetch.get_company_data(cur, fair_id)
-    #company_answers, company_cities = data_fetch.get_company_data(cur)
-    #company_data = data_fetch.get_names_and_ids(cur)
-    #most_similar_companies = similarity_func(student_data, company_answers, company_data, 5, doc_id)
+
     most_similar_companies = similarity_func(student_data, company_data, 5, doc_id)
     return most_similar_companies
 
@@ -128,12 +112,6 @@ def format_student_data(cur, data):
     answers = []
     # Get the number of answers for each question
     number_of_answers = data_fetch.get_number_of_answers(cur)
-
-    # benefit_answer_indexes = np.zeros(number_of_answers[0], dtype=int)
-    # for answer in data.get("benefits"):
-    #     # Note that the indexes in the database are not zero indexed.
-    #     benefit_answer_indexes[answer - 1] = 1
-    # student_data = np.append(student_data, benefit_answer_indexes)
 
     competence_answer_indexes = np.zeros(number_of_answers[0], dtype=int)
     for answer in data.get("competences"):

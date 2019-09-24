@@ -1,11 +1,8 @@
 import psycopg2
 import numpy as np
 
-# This years fair id
-#fair_id = "4" # WHY IS THIS HARD-CODED
-# Number of questions
-# As of 2019: Industries? Competences? Values? Employments? Location? Cities?
-# TODO: Cities should probably be treated differently
+# As of 2019: Industries, Competences, Values, Employments, Locations 
+# Cities are treated differently and thus not included
 number_of_questions = 5
 
 # Get all the exhibitors in this years fair
@@ -16,9 +13,6 @@ def exhibitors_ordered_by_id(cur, fair_id):
 
 # Method for extracting the names of all the exhibitors
 def get_names_and_ids(cur, fair_id):
-    # Get all the exhibitor ids of this years fair
-    #cur.execute("SELECT id FROM public.exhibitors_exhibitor WHERE fair_id = " + fair_id + "ORDER BY id")
-    #exhibitors_ids = cur.fetchall()
     exhibitors_ids = exhibitors_ordered_by_id(cur, fair_id)
 
     # Get the names of the exhibitors
@@ -37,22 +31,14 @@ def get_number_of_answers(cur):
     # Create a list consisting of all the different number of answers
     number_of_answers_per_question = np.zeros(number_of_questions,dtype=int)
 
-    # Get the number of answers on the question about company benefits
-    # cur.execute("SELECT count(*) FROM exhibitors_cataloguebenefit")
-    # number_of_benefits = cur.fetchall()[0][0]
-    # number_of_answers_per_question[0] = number_of_benefits
-
-    # The indexes are not neatly organized...
-    # As long as the index in the answer matrix corresponds to the index
-    # in the database, we need to use MAX instead of COUNT, since
-    # there might be indexes that are larger than the number of 
-    # rows presently in the relation.
+    # Since the number of valid id:s changes over time, it is safer
+    # to use max(id) instead of count(*), since we cannot be sure
+    # that the indexes are well-behaved. It wastes a little space
+    # but should be fine.
 
     # Get the number of answers on the question about company benefits
     cur.execute("SELECT max(id) FROM exhibitors_cataloguecompetence")
     number_of_compentences = cur.fetchall()[0][0]
-    import sys
-    #sys.stderr.write("Number of competences: " + str(number_of_compentences) + "\n")
     number_of_answers_per_question[0] = number_of_compentences
 
     # Get the number of answers on the question about employments
@@ -61,7 +47,6 @@ def get_number_of_answers(cur):
     number_of_answers_per_question[1] = number_of_employments
 
     # Get the number of answers on the question about industries
-    #cur.execute("SELECT count(*) FROM exhibitors_catalogueindustry")
     cur.execute("SELECT MAX(id) FROM exhibitors_catalogueindustry")
     number_of_industries = cur.fetchall()[0][0]
     number_of_answers_per_question[2] = number_of_industries
@@ -82,9 +67,6 @@ def get_number_of_answers(cur):
 # Method for extracting all the company answers
 def get_company_data(cur, fair_id):
     # Get all the exhibitor ids of this years fair
-    # TODO So I think this used to be a bug... The names_and_ids were sorted, but not this one
-    #cur.execute("SELECT * FROM exhibitors_exhibitor WHERE fair_id = " + fair_id + " ORDER BY id") 
-    #exhibitor_ids = cur.fetchall()
     exhibitor_ids = exhibitors_ordered_by_id(cur, fair_id)
 
     # Get the number of exhibitors
@@ -105,23 +87,7 @@ def get_company_data(cur, fair_id):
     company_cities = []
     # Iterate through all companies an mark their answers in their row in the final matrix.
     for i,id in enumerate(exhibitor_ids):
-        import sys
-        #sys.stderr.write(str(id[0]) + '\n')
         all_answers = []
-
-        # Get the answers on the question about the company benefits
-        # cur.execute("SELECT DISTINCT exhibitor_id, cataloguebenefit_id  \
-        #              FROM exhibitors_exhibitor_catalogue_benefits, exhibitors_exhibitor \
-        #              WHERE exhibitors_exhibitor_catalogue_benefits.exhibitor_id = "  + str(id[0]) +  " \
-        #              ORDER BY exhibitor_id, cataloguebenefit_id")
-        # benefit_answers = cur.fetchall()
-
-        # # Create an array of zeros and for each answer the company has answered, fill in 1 on that index.
-        # benefit_answer_indexes = np.zeros(number_of_answers[0], dtype=int)
-        # for answer in benefit_answers:
-        #     # Note that the indexes in the database are not zero indexed.
-        #     benefit_answer_indexes[answer[1] - 1] = 1
-        # all_answers = np.append(all_answers, benefit_answer_indexes)
 
         # Get the answers on the question about the company competences
         cur.execute("SELECT DISTINCT exhibitor_id, cataloguecompetence_id  \
@@ -156,8 +122,6 @@ def get_company_data(cur, fair_id):
                      WHERE exhibitors_exhibitor_catalogue_industries.exhibitor_id = "  + str(id[0]) +  " \
                      ORDER BY exhibitor_id, catalogueindustry_id")
         industry_answers = cur.fetchall()
-
-        #sys.stderr.write(str(industry_answers) + '\n')
 
         # Create an array of zeros and for each answer the company has answered, fill in 1 on that index.
         industry_answer_indexes = np.zeros(number_of_answers[2], dtype=int)
@@ -201,8 +165,9 @@ def get_company_data(cur, fair_id):
                         WHERE id = " + str(id[0])
                     )
         
-        # fetchall() will return a list with one tuple, since it's only one string
-        # we simply extract the first element of the tuple
+        # fetchall() will return a list with one tuple, 
+        # like [('Stockholm, Göteborg, Malmö',)].
+        # since it's only one string we simply extract the first element of the tuple
         company_cities.append(cur.fetchall()[0][0]) # Will have the same order as company_answers
 
     company_data = {"answers": company_answers,
@@ -222,4 +187,4 @@ def test_data_fetch():
     get_company_data(cur, "4") # Hard-coded fair_id
 
 
-#test_data_fetch()
+test_data_fetch()
