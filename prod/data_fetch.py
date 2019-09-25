@@ -86,8 +86,17 @@ def get_company_data(cur, fair_id):
     # Initialize the list that will hold the cities chosen by each company
     company_cities = []
     # Iterate through all companies an mark their answers in their row in the final matrix.
+    
+    company_answers = {
+        "competences": {},
+        "industries": {},
+        "employments": {},
+        "values": {},
+        "locations": {},
+        "cities": {}
+    }
     for i,id in enumerate(exhibitor_ids):
-        all_answers = []
+        all_answers = {}
 
         # Get the answers on the question about the company competences
         cur.execute("SELECT DISTINCT exhibitor_id, cataloguecompetence_id  \
@@ -101,7 +110,8 @@ def get_company_data(cur, fair_id):
         for answer in competence_answers:
             # Note that the indexes in the database are not zero indexed.
             competence_answer_indexes[answer[1] - 1] = 1
-        all_answers = np.append(all_answers, competence_answer_indexes)
+        #all_answers = np.append(all_answers, competence_answer_indexes)
+        company_answers["competences"][i] = competence_answer_indexes
 
         # Get the answers on the question about employment
         cur.execute("SELECT DISTINCT exhibitor_id, catalogueemployment_id  \
@@ -114,7 +124,8 @@ def get_company_data(cur, fair_id):
         employment_answer_indexes = np.zeros(number_of_answers[1], dtype=int)
         for answer in employment_answers:
             employment_answer_indexes[answer[1] - 1] = 1
-        all_answers = np.append(all_answers, employment_answer_indexes)
+        #all_answers = np.append(all_answers, employment_answer_indexes)
+        company_answers["employments"][i] = employment_answer_indexes
 
         # Get the answers on the question about industries
         cur.execute("SELECT DISTINCT exhibitor_id, catalogueindustry_id  \
@@ -127,7 +138,8 @@ def get_company_data(cur, fair_id):
         industry_answer_indexes = np.zeros(number_of_answers[2], dtype=int)
         for answer in industry_answers:
             industry_answer_indexes[answer[1] - 1] = 1
-        all_answers = np.append(all_answers, industry_answer_indexes)
+        #all_answers = np.append(all_answers, industry_answer_indexes)
+        company_answers["industries"][i] = industry_answer_indexes
 
         # Get the answers on the question about company values
         cur.execute("SELECT DISTINCT exhibitor_id, cataloguevalue_id  \
@@ -140,7 +152,8 @@ def get_company_data(cur, fair_id):
         value_answer_indexes = np.zeros(number_of_answers[3], dtype=int)
         for answer in value_answers:
             value_answer_indexes[answer[1] - 1] = 1
-        all_answers = np.append(all_answers, value_answer_indexes)
+        #all_answers = np.append(all_answers, value_answer_indexes)
+        company_answers["values"][i] = value_answer_indexes
 
         # Get the answers on the question about company locations
         cur.execute("SELECT DISTINCT exhibitor_id, cataloguelocation_id  \
@@ -153,11 +166,10 @@ def get_company_data(cur, fair_id):
         location_answer_indexes = np.zeros(number_of_answers[4], dtype=int)
         for answer in location_answers:
             location_answer_indexes[answer[1] - 1] = 1
-        all_answers = np.append(all_answers, location_answer_indexes)
-
-        # All answers contains all the answers for this company (represented as an array of 0 and 1).
-        # Add this answer array to the final matrix.
-        company_answers[i] = all_answers
+        #all_answers = np.append(all_answers, location_answer_indexes)
+        company_answers["locations"][i] = location_answer_indexes
+ 
+        
 
         # Now get the cities for this exhibitor, just the raw data. We may format it later
         cur.execute(   "SELECT catalogue_cities \
@@ -168,12 +180,12 @@ def get_company_data(cur, fair_id):
         # fetchall() will return a list with one tuple, 
         # like [('Stockholm, Göteborg, Malmö',)].
         # since it's only one string we simply extract the first element of the tuple
-        company_cities.append(cur.fetchall()[0][0]) # Will have the same order as company_answers
+        #company_cities.append(cur.fetchall()[0][0]) # Will have the same order as company_answers
+        company_answers["cities"][i] = cur.fetchall()[0][0]
 
-    company_data = {"answers": company_answers,
-                    "cities": company_cities,
+    company_data = {"data": company_answers,
                     "info": get_names_and_ids(cur, fair_id)}
-
+    
     return company_data
 
 
