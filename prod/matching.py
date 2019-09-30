@@ -18,8 +18,11 @@ def enable_connection():
 def similarity_func(student_data, company_data, number_similar_companies, doc_id):
     similarities = {}
     categories = ["competences", "industries", "employments", "values", "locations"] # CITIES?
+    weight_sum = 0
 
     for category in categories:
+        weight_sum += student_data["weights"][category]
+
         student_yes_indexes = []
         # Get all the answers the student marked
         student_answers = student_data[category]
@@ -55,12 +58,18 @@ def similarity_func(student_data, company_data, number_similar_companies, doc_id
             similarities[category][i] = (value - min_points) / (max_points - min_points)
 
     # Calculate the total similarity, regardless of category
+    # taking into account the normalized weights
+    normalized_weights = {}
+    for category in categories:
+        normalized_weights[category] = student_data["weights"][category] / weight_sum
+    
     similarities["total"] = {}
     for i in company_data["data"][categories[0]].keys(): # All the company indexes
         sum_of_similarities = 0
         for category in categories:
-            sum_of_similarities += similarities[category][i]
-        similarities["total"][i] = sum_of_similarities / len(categories) 
+            sum_of_similarities += similarities[category][i] * normalized_weights[category]
+        #similarities["total"][i] = (sum_of_similarities / len(categories))
+        similarities["total"][i] = sum_of_similarities
 
 
     # Compare student and companies based on the cities they entered
@@ -140,27 +149,27 @@ def format_student_data(cur, data):
     number_of_answers = data_fetch.get_number_of_answers(cur)
 
     competence_answer_indexes = np.zeros(number_of_answers[0], dtype=int)
-    for answer in data.get("competences"):
+    for answer in data["competences"]["answer"]:
         competence_answer_indexes[answer - 1] = 1
     #answers = np.append(answers, competence_answer_indexes)
 
     employment_answer_indexes = np.zeros(number_of_answers[1], dtype=int)
-    for answer in data.get("employments"):
+    for answer in data["employments"]["answer"]:
         employment_answer_indexes[answer - 1] = 1
     #answers = np.append(answers,employment_answer_indexes)
 
     industry_answer_indexes = np.zeros(number_of_answers[2], dtype=int)
-    for answer in data.get("industries"):
+    for answer in data["industries"]["answer"]:
         industry_answer_indexes[answer - 1] = 1
     #answers = np.append(answers, industry_answer_indexes)
 
     value_answer_indexes = np.zeros(number_of_answers[3], dtype=int)
-    for answer in data.get("values"):
+    for answer in data["values"]["answer"]:
         value_answer_indexes[answer - 1] = 1
     #answers = np.append(answers, value_answer_indexes)
 
     location_answer_indexes = np.zeros(number_of_answers[4], dtype=int)
-    for answer in data.get("locations"):
+    for answer in data["locations"]["answer"]:
         location_answer_indexes[answer - 1] = 1
     #answers = np.append(answers, location_answer_indexes)
 
@@ -169,7 +178,9 @@ def format_student_data(cur, data):
                     "industries": industry_answer_indexes,
                     "values": value_answer_indexes,
                     "locations": location_answer_indexes,
-                    "cities": data.get("cities")}
+                    "cities": data["cities"]["answer"],
+                    "weights": {category : data[category]["weight"] for category in ["competences", "employments", "industries", "values", "locations", "cities"]}
+    }
 
     return student_data
 
