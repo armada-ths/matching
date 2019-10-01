@@ -55,7 +55,7 @@ def similarity_func(student_data, company_data, number_similar_companies, doc_id
                 # No choices made by student, this category will be weighted to 0 
                 # either way, so it doesn't really matter but we'll set every company 
                 # to a perfect match for this category
-                similarities[category][i] = 1
+                similarities[category][i] = 1.0
             else:
                 # The student did pick something
                 # Only keep the answer options that the student answered
