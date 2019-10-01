@@ -51,7 +51,7 @@ def similarity_func(student_data, company_data, number_similar_companies, doc_id
             # The best possible is if the company has answered yes
             # for everything the student checked.
           
-            if answer_given == 0:
+            if not answer_given:
                 # No choices made by student, this category will be weighted to 0 
                 # either way, so it doesn't really matter but we'll set every company 
                 # to a perfect match for this category
