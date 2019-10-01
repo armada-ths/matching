@@ -17,10 +17,12 @@ def enable_connection():
 
 def similarity_func(student_data, company_data, number_similar_companies, doc_id):
     similarities = {}
+    # All the categories except cities, since we treat that differently
     categories = ["competences", "industries", "employments", "values", "locations"]
     weight_sum = 0
 
     for category in categories:
+        # Add the weight for this category to the total weight for later normalization
         weight_sum += student_data["weights"][category]
 
         student_yes_indexes = []
@@ -36,18 +38,12 @@ def similarity_func(student_data, company_data, number_similar_companies, doc_id
         # minus 1 if the student has picked any cities
         max_points = len(student_yes_indexes)
         min_points = -1*max_points
-        # Only keep the answer options that the student answered
-        #new_company_answers = company_data["data"][category][student_yes_indexes]
         
-        # Compare student and companies based on their selected answers
-        #for i, company in enumerate(new_company_answers):
-        similarities[category] = {}
-
         # To check if the student actually answered with something
         answer_given = (len(new_student_answers) != 0)
 
+        similarities[category] = {}
         for i, company_answers in company_data["data"][category].items():
-            # Don't measure distance, measure similarity
             # If the student answered yes, the company gets +1 similarity
             # if they also picked yes, and -1 similarity if they didn't
             # We may then normalize it, taking into account the worst
@@ -56,14 +52,13 @@ def similarity_func(student_data, company_data, number_similar_companies, doc_id
             # for everything the student checked.
           
             if answer_given == 0:
-                # No choices made by student, 
-                # this category will be weighted to 0 
-                # either way, so it doesn't really matter
-                # but we'll set every company to a perfect match
-                # for this category
+                # No choices made by student, this category will be weighted to 0 
+                # either way, so it doesn't really matter but we'll set every company 
+                # to a perfect match for this category
                 similarities[category][i] = 1
             else:
                 # The student did pick something
+                # Only keep the answer options that the student answered
                 new_company_answers = company_answers[student_yes_indexes]
                 value = sum((1 if a == b else -1 for a, b in zip(new_student_answers, new_company_answers)))
                 # Normalize
@@ -97,9 +92,9 @@ def similarity_func(student_data, company_data, number_similar_companies, doc_id
             city_similarities[i] = (city_similarities[i] - min_points) / (max_points - min_points)
     else:
         # If the student provided no answer for cities,
-        # it will be weighted to 0 anyways. We'll still assign
-        # a value though, so that we return some answer
-        # for cities - should make it easier on the front-end.
+        # it will be weighted to 0 anyways.
+        # Since we should return *something*
+        # every company is a good match in regards to cities.
         for i in company_data["data"]["cities"].keys():
             city_similarities[i] = 1.0
         
@@ -121,41 +116,31 @@ def similarity_func(student_data, company_data, number_similar_companies, doc_id
             # if the student entered nothing
             if category in similarities: 
                 sum_of_similarities += similarities[category][i] * normalized_weights[category]
-        #similarities["total"][i] = (sum_of_similarities / len(categories))
+        
         similarities["total"][i] = sum_of_similarities
-
-
-    
     
     # Sort the similarity scores so we can get the highest ones for each category
     # If two values are equal in similarity for a given category,
-    # we'll order them after total similarity
-    # The first element of the tuple is the similarity for the given
-    # category, the second is the total similarity.
+    # we'll order them after total similarity. The first element of the tuple is 
+    # the similarity for the given category, the second is the total similarity.
     sort_key = lambda kv : (kv[1], similarities["total"][kv[0]])
-    #similarities_sorted = []
+
     similarities_sorted = {}
-    #number_similar_companies = {}
     most_similar_companies = {}
     for category in (categories + ["cities", "total"]):
         similarities_sorted[category] = []
-        #for key, value in sorted(similarities[category].items(), key=lambda kv: kv[1], reverse=True):
+        
         if category in similarities:
             for key, value in sorted(similarities[category].items(), key=sort_key, reverse=True):
                 similarities_sorted[category].append((key, value))
             
             # Now get the companies with the highest similarities
-            # Here we normalize the scores to values between 0 and 1.
-            # Currently, the values are between max_points and min_points.
-            # The normalization formula is thus:
-            # (x - min_points) / (2*max_points + 1)
             most_similar_companies[category] = []
             for i in range(number_similar_companies):
                 company = similarities_sorted[category][i]
                 company_index = company[0]
                 exhibitor_id = company_data["info"][company_index][0]
-
-                #normalized_similarity = (company[1] - min_points) / (max_points - min_points) 
+ 
                 similarity = company[1]
 
                 most_similar_companies[category].append(
@@ -189,34 +174,29 @@ def get_response_size(data):
 
 
 def format_student_data(cur, data):
-    #answers = []
+
     # Get the number of answers for each question
     number_of_answers = data_fetch.get_number_of_answers(cur)
 
     competence_answer_indexes = np.zeros(number_of_answers[0], dtype=int)
     for answer in data["competences"]["answer"]:
         competence_answer_indexes[answer - 1] = 1
-    #answers = np.append(answers, competence_answer_indexes)
 
     employment_answer_indexes = np.zeros(number_of_answers[1], dtype=int)
     for answer in data["employments"]["answer"]:
         employment_answer_indexes[answer - 1] = 1
-    #answers = np.append(answers,employment_answer_indexes)
 
     industry_answer_indexes = np.zeros(number_of_answers[2], dtype=int)
     for answer in data["industries"]["answer"]:
         industry_answer_indexes[answer - 1] = 1
-    #answers = np.append(answers, industry_answer_indexes)
 
     value_answer_indexes = np.zeros(number_of_answers[3], dtype=int)
     for answer in data["values"]["answer"]:
         value_answer_indexes[answer - 1] = 1
-    #answers = np.append(answers, value_answer_indexes)
 
     location_answer_indexes = np.zeros(number_of_answers[4], dtype=int)
     for answer in data["locations"]["answer"]:
         location_answer_indexes[answer - 1] = 1
-    #answers = np.append(answers, location_answer_indexes)
 
     weights = {}
     for category in ["competences", "employments", "industries", "values", "locations", "cities"]:
@@ -234,9 +214,6 @@ def format_student_data(cur, data):
                     "cities": data["cities"]["answer"],
                     "weights": weights
     }
-
-    # import sys
-    # sys.stderr.write("Weights: " + str(weights) + "\n")
 
     return student_data
 

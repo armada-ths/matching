@@ -3,6 +3,10 @@ import numpy as np
 
 # As of 2019: Industries, Competences, Values, Employments, Locations 
 # Cities are treated differently and thus not included
+# This value is not super important but must be at least as
+# big or bigger than the number of questions for which
+# different options are picked, since it controls
+# the dimensions of a particular matrix.
 number_of_questions = 5
 
 # Get all the exhibitors in this years fair
@@ -110,7 +114,6 @@ def get_company_data(cur, fair_id):
         for answer in competence_answers:
             # Note that the indexes in the database are not zero indexed.
             competence_answer_indexes[answer[1] - 1] = 1
-        #all_answers = np.append(all_answers, competence_answer_indexes)
         company_answers["competences"][i] = competence_answer_indexes
 
         # Get the answers on the question about employment
@@ -124,7 +127,6 @@ def get_company_data(cur, fair_id):
         employment_answer_indexes = np.zeros(number_of_answers[1], dtype=int)
         for answer in employment_answers:
             employment_answer_indexes[answer[1] - 1] = 1
-        #all_answers = np.append(all_answers, employment_answer_indexes)
         company_answers["employments"][i] = employment_answer_indexes
 
         # Get the answers on the question about industries
@@ -138,7 +140,6 @@ def get_company_data(cur, fair_id):
         industry_answer_indexes = np.zeros(number_of_answers[2], dtype=int)
         for answer in industry_answers:
             industry_answer_indexes[answer[1] - 1] = 1
-        #all_answers = np.append(all_answers, industry_answer_indexes)
         company_answers["industries"][i] = industry_answer_indexes
 
         # Get the answers on the question about company values
@@ -152,7 +153,6 @@ def get_company_data(cur, fair_id):
         value_answer_indexes = np.zeros(number_of_answers[3], dtype=int)
         for answer in value_answers:
             value_answer_indexes[answer[1] - 1] = 1
-        #all_answers = np.append(all_answers, value_answer_indexes)
         company_answers["values"][i] = value_answer_indexes
 
         # Get the answers on the question about company locations
@@ -166,7 +166,6 @@ def get_company_data(cur, fair_id):
         location_answer_indexes = np.zeros(number_of_answers[4], dtype=int)
         for answer in location_answers:
             location_answer_indexes[answer[1] - 1] = 1
-        #all_answers = np.append(all_answers, location_answer_indexes)
         company_answers["locations"][i] = location_answer_indexes
  
         
@@ -180,7 +179,6 @@ def get_company_data(cur, fair_id):
         # fetchall() will return a list with one tuple, 
         # like [('Stockholm, Göteborg, Malmö',)].
         # since it's only one string we simply extract the first element of the tuple
-        #company_cities.append(cur.fetchall()[0][0]) # Will have the same order as company_answers
         company_answers["cities"][i] = cur.fetchall()[0][0]
 
     company_data = {"data": company_answers,
