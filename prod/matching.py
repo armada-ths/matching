@@ -17,7 +17,7 @@ def enable_connection():
 
 def similarity_func(student_data, company_data, number_similar_companies, doc_id):
     similarities = {}
-    categories = ["competences", "industries", "employments", "values", "locations"] # CITIES?
+    categories = ["competences", "industries", "employments", "values", "locations"]
     weight_sum = 0
 
     for category in categories:
@@ -57,75 +57,101 @@ def similarity_func(student_data, company_data, number_similar_companies, doc_id
             # Normalize
             similarities[category][i] = (value - min_points) / (max_points - min_points)
 
+    # Compare student and companies based on the cities they entered
+    # Split the student choices at comma and remove whitespace
+    student_cities = [x.strip().lower() for x in student_data["cities"].split(',')]
+    student_cities = [x for x in student_cities if x] # We do not accept empty strings    
+
+    city_similarities = {}
+
+    if len(student_cities) > 0: # The student actually wrote something
+        max_points = len(student_cities) # The student may get 1 extra point for each city
+        min_points = -1 # The student gets at worst -1 if nothing matches
+
+        for i, company_cities in company_data["data"]["cities"].items():
+            # If the company has not answered, they get -1, 
+            # since the student clearly has a preference, 
+            # and we can't know if the company lives up to it
+            if company_cities is None or not company_cities: # None or empty string
+                city_similarities[i] = -1
+            else:
+                # Get the number of citites in common
+                number_of_matching_cities = sum([1 if city in company_cities.lower() else 0 for city in student_cities])
+                if number_of_matching_cities == 0:
+                    # The company didn't match a single city, so they get -1
+                    city_similarities[i] = -1
+                else:
+                    city_similarities[i] = number_of_matching_cities
+            city_similarities[i] = (city_similarities[i] - min_points) / (max_points - min_points)
+    else:
+        # If the student provided no answer for cities,
+        # it will be weighted to 0 anyways. We'll still assign
+        # a value though, so that we return some answer
+        # for cities - should make it easier on the front-end.
+        for i in company_data["data"]["cities"].keys():
+            city_similarities[i] = 1.0
+        
+    similarities["cities"] = city_similarities
+
     # Calculate the total similarity, regardless of category
-    # taking into account the normalized weights
+    # taking into account the normalized weights, we expect
+    # the weights to always be present, regardless of user input
     normalized_weights = {}
-    for category in categories:
+    for category in categories + ["cities"]:
         normalized_weights[category] = student_data["weights"][category] / weight_sum
     
     similarities["total"] = {}
     for i in company_data["data"][categories[0]].keys(): # All the company indexes
         sum_of_similarities = 0
-        for category in categories:
-            sum_of_similarities += similarities[category][i] * normalized_weights[category]
+        for category in categories + ["cities"]:
+            # We need to check that we've actually calculated the similarity
+            # In the case of cities for instance, we don't calculate the similarity 
+            # if the student entered nothing
+            if category in similarities: 
+                sum_of_similarities += similarities[category][i] * normalized_weights[category]
         #similarities["total"][i] = (sum_of_similarities / len(categories))
         similarities["total"][i] = sum_of_similarities
 
 
-    # Compare student and companies based on the cities they entered
-    # Split the student choices at comma and remove whitespace
-    # student_cities = [x.strip().lower() for x in student_data["cities"].split(',')]
-    # student_cities = [x for x in student_cities if x] # We do not accept empty strings    
-
-    # if len(student_cities) > 0: # The student actually wrote something
-    #     max_points += len(student_cities)
-    #     min_points -= 1
-
-    #     for i, company_cities in enumerate(company_data["cities"]):
-    #         # If the company has not answered, they get -1, 
-    #         # since the student clearly has a preference, 
-    #         # and we can't know if the company lives up to it
-    #         if company_cities is None or not company_cities: # None or empty string
-    #             similarities[i] -= 1
-    #         else:
-    #             # Get the number of citites in common
-    #             number_of_matching_cities = sum([1 if city in company_cities.lower() else 0 for city in student_cities])
-    #             if number_of_matching_cities == 0:
-    #                 # The company didn't match a single city, so they get -1
-    #                 similarities[i] -= 1
-    #             else:
-    #                 similarities[i] += number_of_matching_cities
+    
     
     # Sort the similarity scores so we can get the highest ones for each category
+    # If two values are equal in similarity for a given category,
+    # we'll order them after total similarity
+    # The first element of the tuple is the similarity for the given
+    # category, the second is the total similarity.
+    sort_key = lambda kv : (kv[1], similarities["total"][kv[0]])
     #similarities_sorted = []
     similarities_sorted = {}
     #number_similar_companies = {}
     most_similar_companies = {}
-    for category in (categories + ["total"]):
+    for category in (categories + ["cities", "total"]):
         similarities_sorted[category] = []
-        for key, value in sorted(similarities[category].items(), key=lambda kv: kv[1], reverse=True):
-            similarities_sorted[category].append((key, value))
-        
-        # Now get the companies with the highest similarities
-        # Here we normalize the scores to values between 0 and 1.
-        # Currently, the values are between max_points and min_points.
-        # The normalization formula is thus:
-        # (x - min_points) / (2*max_points + 1)
-        most_similar_companies[category] = []
-        for i in range(number_similar_companies):
-            company = similarities_sorted[category][i]
-            company_index = company[0]
-            exhibitor_id = company_data["info"][company_index][0]
+        #for key, value in sorted(similarities[category].items(), key=lambda kv: kv[1], reverse=True):
+        if category in similarities:
+            for key, value in sorted(similarities[category].items(), key=sort_key, reverse=True):
+                similarities_sorted[category].append((key, value))
+            
+            # Now get the companies with the highest similarities
+            # Here we normalize the scores to values between 0 and 1.
+            # Currently, the values are between max_points and min_points.
+            # The normalization formula is thus:
+            # (x - min_points) / (2*max_points + 1)
+            most_similar_companies[category] = []
+            for i in range(number_similar_companies):
+                company = similarities_sorted[category][i]
+                company_index = company[0]
+                exhibitor_id = company_data["info"][company_index][0]
 
-            #normalized_similarity = (company[1] - min_points) / (max_points - min_points) 
-            similarity = company[1]
+                #normalized_similarity = (company[1] - min_points) / (max_points - min_points) 
+                similarity = company[1]
 
-            most_similar_companies[category].append(
-                {
-                    "exhibitor_id": exhibitor_id,
-                    "similarity": similarity
-                }
-            )
+                most_similar_companies[category].append(
+                    {
+                        "exhibitor_id": exhibitor_id,
+                        "similarity": similarity
+                    }
+                )
     # Dump the data to file
     with open("/tmp/" + doc_id + "_output.json", "w") as outfile:
         json.dump(most_similar_companies, outfile)
@@ -137,10 +163,17 @@ def matching(doc_id, file_path, fair_id):
         student_data_from_file = json.load(infile)
 
     student_data = format_student_data(cur, student_data_from_file)
+    response_size = get_response_size(student_data_from_file)
     company_data = data_fetch.get_company_data(cur, fair_id)
 
-    most_similar_companies = similarity_func(student_data, company_data, 5, doc_id)
+    most_similar_companies = similarity_func(student_data, company_data, response_size, doc_id)
     return most_similar_companies
+
+def get_response_size(data):
+    if "response_size" in data:
+        return data["response_size"]
+    else:
+        return 4 # Default
 
 
 def format_student_data(cur, data):
@@ -173,14 +206,25 @@ def format_student_data(cur, data):
         location_answer_indexes[answer - 1] = 1
     #answers = np.append(answers, location_answer_indexes)
 
+    weights = {}
+    for category in ["competences", "employments", "industries", "values", "locations", "cities"]:
+        answer = data[category]["answer"]
+        if (isinstance(answer, list) and len(answer) > 0) or (isinstance(answer, str) and answer != ""):
+            weights[category] = data[category]["weight"]
+        else:
+            weights[category] = 0
+
     student_data = {"competences": competence_answer_indexes,
                     "employments": employment_answer_indexes,
                     "industries": industry_answer_indexes,
                     "values": value_answer_indexes,
                     "locations": location_answer_indexes,
                     "cities": data["cities"]["answer"],
-                    "weights": {category : data[category]["weight"] for category in ["competences", "employments", "industries", "values", "locations", "cities"]}
+                    "weights": weights
     }
+
+    # import sys
+    # sys.stderr.write("Weights: " + str(weights) + "\n")
 
     return student_data
 
