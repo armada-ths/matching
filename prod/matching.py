@@ -39,10 +39,13 @@ def similarity_func(student_data, company_data, number_similar_companies, doc_id
         # Only keep the answer options that the student answered
         #new_company_answers = company_data["data"][category][student_yes_indexes]
         
-        
         # Compare student and companies based on their selected answers
         #for i, company in enumerate(new_company_answers):
         similarities[category] = {}
+
+        # To check if the student actually answered with something
+        answer_given = (len(new_student_answers) != 0)
+
         for i, company_answers in company_data["data"][category].items():
             # Don't measure distance, measure similarity
             # If the student answered yes, the company gets +1 similarity
@@ -52,10 +55,19 @@ def similarity_func(student_data, company_data, number_similar_companies, doc_id
             # The best possible is if the company has answered yes
             # for everything the student checked.
           
-            new_company_answers = company_answers[student_yes_indexes]
-            value = sum((1 if a == b else -1 for a, b in zip(new_student_answers, new_company_answers)))
-            # Normalize
-            similarities[category][i] = (value - min_points) / (max_points - min_points)
+            if answer_given == 0:
+                # No choices made by student, 
+                # this category will be weighted to 0 
+                # either way, so it doesn't really matter
+                # but we'll set every company to a perfect match
+                # for this category
+                similarities[category][i] = 1
+            else:
+                # The student did pick something
+                new_company_answers = company_answers[student_yes_indexes]
+                value = sum((1 if a == b else -1 for a, b in zip(new_student_answers, new_company_answers)))
+                # Normalize
+                similarities[category][i] = (value - min_points) / (max_points - min_points)
 
     # Compare student and companies based on the cities they entered
     # Split the student choices at comma and remove whitespace
