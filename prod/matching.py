@@ -65,6 +65,7 @@ def similarity_func(student_data, company_data, number_similar_companies, doc_id
                 similarities[category][i] = (value - min_points) / (max_points - min_points)
 
     # Compare student and companies based on the cities they entered
+    weight_sum += student_data["weights"]["cities"]
     # Split the student choices at comma and remove whitespace
     student_cities = [x.strip().lower() for x in student_data["cities"].split(',')]
     student_cities = [x for x in student_cities if x] # We do not accept empty strings    
@@ -117,7 +118,7 @@ def similarity_func(student_data, company_data, number_similar_companies, doc_id
             if category in similarities: 
                 sum_of_similarities += similarities[category][i] * normalized_weights[category]
         
-        similarities["total"][i] = sum_of_similarities
+        similarities["total"][i] = round(sum_of_similarities, 4)
     
     # Sort the similarity scores so we can get the highest ones for each category
     # If two values are equal in similarity for a given category,
