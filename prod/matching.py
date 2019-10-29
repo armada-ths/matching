@@ -14,8 +14,106 @@ def enable_connection():
         print("I am unable to connect to the database")
     return conn.cursor()
 
+# Calculates similarity by giving 0 for no matches,
+# 80% for one match. For subsequent matches, the remaining
+# matches contribute 80% of the remaining score up to 1.
+# This is useful for categories where one match is pretty good,
+# and additional matches are subject to diminishing returns.
+# For instance, a company working in all the industries a
+# student is interest in is not twice as good a match as 
+# a company that only works in half of them.
+def cumulative_similarity_func(student_answers, company_data):
+    factor = 0.8
+
+    student_yes_indexes = []
+    for i in range(len(student_answers)):
+        if student_answers[i] == 1:
+            student_yes_indexes.append(i)
+    new_student_answers = np.ones(len(student_yes_indexes))
+
+    answer_given = (len(new_student_answers) != 0)
+
+    similarities = {}
+    
+    for i, company_answers in company_data.items():
+        
+        if not answer_given:
+            # No choices made by student, this category will be weighted to 0 
+            # either way, so it doesn't really matter but we'll set every company 
+            # to a perfect match for this category
+            similarities[i] = 1.0
+        else:
+            # The student did pick something
+            # Only keep the answer options that the student answered
+            new_company_answers = company_answers[student_yes_indexes]
+            
+            cumulative_similarity = 0.0
+            max_similarity = 0.0
+            for j in range(len(new_student_answers)):
+                max_similarity += (1 - max_similarity) * factor
+                if new_company_answers[j] == new_student_answers[j]:
+                    # They both answered yes
+                    cumulative_similarity += (1 - cumulative_similarity) * factor
+            # If they match on all answers, the score should be 1 and not 0.999...
+            # so we check to see if the score is the maximum obtainable by this 
+            # type of calculation and set it to 1 in that case.
+            if cumulative_similarity == max_similarity:
+                cumulative_similarity = 1.0
+            similarities[i] = cumulative_similarity
+    
+    return similarities
+
+def fair_similarity_func(student_answers, company_data):
+    student_yes_indexes = []
+    for i in range(len(student_answers)):
+        if student_answers[i] == 1:
+            student_yes_indexes.append(i)
+    new_student_answers = np.ones(len(student_yes_indexes))
+
+    answer_given = (len(new_student_answers) != 0)
+
+    # The maximum similarity obtainable is the number of 
+    # questions answered + the number of cities entered.
+    # The minimum is -1*the number of questions answered
+    # minus 1 if the student has picked any cities
+    max_points = len(student_yes_indexes)
+    min_points = -1*max_points
+
+    similarities = {}
+    
+    for i, company_answers in company_data.items():
+        # If the student answered yes, the company gets +1 similarity
+        # if they also picked yes, and -1 similarity if they didn't
+        # We may then normalize it, taking into account the worst
+        # possible similarity, and the best possible similarity.
+        # The best possible is if the company has answered yes
+        # for everything the student checked.
+        
+        if not answer_given:
+            # No choices made by student, this category will be weighted to 0 
+            # either way, so it doesn't really matter but we'll set every company 
+            # to a perfect match for this category
+            similarities[i] = 1.0
+        else:
+            # The student did pick something
+            # Only keep the answer options that the student answered
+            new_company_answers = company_answers[student_yes_indexes]
+            value = sum((1 if a == b else -1 for a, b in zip(new_student_answers, new_company_answers)))
+            # Normalize
+            similarities[i] = (value - min_points) / (max_points - min_points)
+    
+    return similarities
+
 
 def similarity_func(student_data, company_data, number_similar_companies, doc_id):
+    similarity_functions = {
+        "competences": cumulative_similarity_func,
+        "industries": cumulative_similarity_func,
+        "employments": cumulative_similarity_func,
+        "values": fair_similarity_func,
+        "locations": cumulative_similarity_func
+    }
+
     similarities = {}
     # All the categories except cities, since we treat that differently
     categories = ["competences", "industries", "employments", "values", "locations"]
@@ -24,47 +122,13 @@ def similarity_func(student_data, company_data, number_similar_companies, doc_id
     for category in categories:
         # Add the weight for this category to the total weight for later normalization
         weight_sum += student_data["weights"][category]
-
-        student_yes_indexes = []
-        # Get all the answers the student marked
-        student_answers = student_data[category]
-        for i in range(len(student_answers)):
-            if student_answers[i] == 1:
-                student_yes_indexes.append(i)
-        new_student_answers = np.ones(len(student_yes_indexes))
-        # The maximum similarity obtainable is the number of 
-        # questions answered + the number of cities entered.
-        # The minimum is -1*the number of questions answered
-        # minus 1 if the student has picked any cities
-        max_points = len(student_yes_indexes)
-        min_points = -1*max_points
-        
-        # To check if the student actually answered with something
-        answer_given = (len(new_student_answers) != 0)
-
-        similarities[category] = {}
-        for i, company_answers in company_data["data"][category].items():
-            # If the student answered yes, the company gets +1 similarity
-            # if they also picked yes, and -1 similarity if they didn't
-            # We may then normalize it, taking into account the worst
-            # possible similarity, and the best possible similarity.
-            # The best possible is if the company has answered yes
-            # for everything the student checked.
-          
-            if not answer_given:
-                # No choices made by student, this category will be weighted to 0 
-                # either way, so it doesn't really matter but we'll set every company 
-                # to a perfect match for this category
-                similarities[category][i] = 1.0
-            else:
-                # The student did pick something
-                # Only keep the answer options that the student answered
-                new_company_answers = company_answers[student_yes_indexes]
-                value = sum((1 if a == b else -1 for a, b in zip(new_student_answers, new_company_answers)))
-                # Normalize
-                similarities[category][i] = (value - min_points) / (max_points - min_points)
+        similarities[category] = similarity_functions[category](student_data[category], company_data["data"][category])
 
     # Compare student and companies based on the cities they entered
+    # This has to be done in a special way since we're looking
+    # at strings rather than yes/no choices
+    weight_sum += student_data["weights"]["cities"]
+
     # Split the student choices at comma and remove whitespace
     student_cities = [x.strip().lower() for x in student_data["cities"].split(',')]
     student_cities = [x for x in student_cities if x] # We do not accept empty strings    
@@ -117,7 +181,7 @@ def similarity_func(student_data, company_data, number_similar_companies, doc_id
             if category in similarities: 
                 sum_of_similarities += similarities[category][i] * normalized_weights[category]
         
-        similarities["total"][i] = sum_of_similarities
+        similarities["total"][i] = round(sum_of_similarities, 4) # More than 4 decimals doesn't make sense...
     
     # Sort the similarity scores so we can get the highest ones for each category
     # If two values are equal in similarity for a given category,
